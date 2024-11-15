@@ -14,6 +14,8 @@ typedef const __FlashStringHelper * FlashStr;
 typedef const byte* PGM_BYTES_P;
 #define PSTR_TO_F(s) reinterpret_cast<const __FlashStringHelper *> (s)
 
+#define    ON                 HIGH
+#define    OFF                LOW
 #define    FORWARD            HIGH
 #define    REVERSE            LOW
 #define    MOTOR1_DIRECTION   2
@@ -21,8 +23,8 @@ typedef const byte* PGM_BYTES_P;
 #define    MOTOR2_PIN1        4
 #define    MOTOR2_PIN2        5
 
-#define    MOTOR2_PIN1        6
-#define    MOTOR2_PIN2        7
+//#define    MOTOR2_PIN1        6
+//#define    MOTOR2_PIN2        7
 // These can be changed freely when using the bitbanged protocol
 const byte PIN_PS2_ATT = 10;
 const byte PIN_PS2_CMD = 11;
@@ -153,16 +155,23 @@ const char* const controllerTypeStrings[PSCTRL_MAX + 1] PROGMEM = {
 PsxControllerBitBang<PIN_PS2_ATT, PIN_PS2_CMD, PIN_PS2_DAT, PIN_PS2_CLK> psx;
 
 boolean haveController = false;
+
+void all_motor_off()
+{
+    digitalWrite( MOTOR1_DIRECTION, REVERSE);
+    digitalWrite( MOTOR1_CONTROL, OFF);
+}
+
 void motor1_fwd()
 {
-    digitalWrite( MOTOR1_PIN1, HIGH);
-    digitalWrite( MOTOR1_PIN2, LOW);
+    digitalWrite( MOTOR1_DIRECTION, FORWARD);
+    digitalWrite( MOTOR1_CONTROL, ON);
 }
 
 void motor1_reverse()
 {
-    digitalWrite( MOTOR1_PIN1, LOW);
-    digitalWrite( MOTOR1_PIN2, HIGH);
+    //digitalWrite( MOTOR1_PIN1, LOW);
+    //digitalWrite( MOTOR1_PIN2, HIGH);
 }
 
 void motor2_fwd()
@@ -190,17 +199,23 @@ void trolley_control(PsxButtons button)
 		    lastB = button;     // Save it before we alter it	
     }
     if(button == PSB_L1)
-    Serial.print("catch L1\n");
-
+    {
+      Serial.print("motor1 fwd\n");
+      motor1_fwd();
+    }
     else if( button == PSB_NONE)
-    Serial.print("released\n");
+    {
+      Serial.print("released\n");
+      all_motor_off();
+    }
 }
 
 
 void setup () {
 	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
 	fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
-	
+	pinMode(MOTOR1_DIRECTION, OUTPUT);
+  pinMode(MOTOR1_CONTROL, OUTPUT);
 	delay (300);
 
 	Serial.begin (115200);
