@@ -25,8 +25,8 @@ typedef const byte* PGM_BYTES_P;
 
 const byte PIN_PS2_ATT = 10;
 const byte PIN_HAVECONTROLLER = 8;
-const byte PIN_BUTTONPRESS = 7;
-const byte PIN_ANALOG = 6;
+const byte PIN_BUTTONPRESS = 9; //7;
+//const byte PIN_ANALOG = 6;
 
 const byte ANALOG_DEAD_ZONE = 50U;
 
@@ -98,7 +98,6 @@ FlashStr getButtonName (PsxButtons psxButton) {
 
 void dumpButtons (PsxButtons psxButtons) {
 	static PsxButtons lastB = 0;
-
 	if (psxButtons != lastB) {
 		lastB = psxButtons;     // Save it before we alter it
 		
@@ -248,10 +247,15 @@ void motor1_fwd()
 
 void motor1_reverse()
 {
-    //digitalWrite( MOTOR1_PIN1, LOW);
-    //digitalWrite( MOTOR1_PIN2, HIGH);
+    digitalWrite( MOTOR1_DIRECTION, REVERSE);
+    digitalWrite( MOTOR1_CONTROL, ON);
 }
 
+void motor1_stop()
+{
+    digitalWrite( MOTOR1_DIRECTION, FORWARD);
+    digitalWrite( MOTOR1_CONTROL, OFF);
+}
 void motor2_fwd()
 {
     digitalWrite( MOTOR2_PIN1, HIGH);
@@ -266,9 +270,16 @@ void motor2_reverse()
 
 void trolley_control(PsxButtons button)
 {
-    
-  	static PsxButtons lastB = 0;
-    if (button == lastB)
+    #define mask_L2         0b100000000
+ #if 0
+    Serial.println("==============");
+    Serial.print("button : ");
+    Serial.print(button);
+    Serial.print("  mask : ");
+    Serial.println(mask_L1 & button);
+  	Serial.println("==============");
+    static PsxButtons lastB = 0;
+    if (button << lastB | lastB)
     {
         return;
     }
@@ -276,31 +287,43 @@ void trolley_control(PsxButtons button)
     {
 		    lastB = button;     // Save it before we alter it	
     }
-    if(button == PSB_L1)
+#endif
+
+    if(button & mask_L2)
     {
-      Serial.print("motor1 fwd\n");
-      motor1_fwd();
+        Serial.print("motor1 fwd\n");
+        motor1_fwd();
     }
-    else if( button == PSB_NONE)
+    else
+    {
+        motor1_stop();
+    }
+#if 0    
+    if( button == PSB_NONE)
     {
       Serial.print("released\n");
-      all_motor_off();
+      //all_motor_off();
     }
+#endif
 }
  
 void setup () {
+  pinMode(MOTOR1_DIRECTION, OUTPUT);
+  pinMode(MOTOR1_CONTROL, OUTPUT);
 	fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
 	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
-	fastPinMode (PIN_ANALOG, OUTPUT);
-	
-	delay (300);
+	//fastPinMode (PIN_ANALOG, OUTPUT);
+	all_motor_off();
+  Serial.begin (115200);
+  Serial.println ("starting...");
+	//delay (30000);
 
-	Serial.begin (115200);
+	
 	while (!Serial) {
 		// Wait for serial port to connect on Leonardo boards
 		fastDigitalWrite (PIN_HAVECONTROLLER, (millis () / 333) % 2);
 		fastDigitalWrite (PIN_BUTTONPRESS, (millis () / 333) % 2);
-		fastDigitalWrite (PIN_ANALOG, (millis () / 333) % 2);
+		//fastDigitalWrite (PIN_ANALOG, (millis () / 333) % 2);
 	}
 	Serial.println (F("Ready!"));
 }
@@ -367,7 +390,7 @@ void loop () {
 				sry = ry;
 			}
 
-			fastDigitalWrite (PIN_ANALOG, lx != 0 || ly != 0 || rx != 0 || ry != 0);
+			//fastDigitalWrite (PIN_ANALOG, lx != 0 || ly != 0 || rx != 0 || ry != 0);
 		}
 	}
 
