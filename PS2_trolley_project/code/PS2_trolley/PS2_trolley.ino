@@ -16,15 +16,21 @@ typedef const byte* PGM_BYTES_P;
 #define    OFF                LOW
 #define    FORWARD            HIGH
 #define    REVERSE            LOW
+#define    R_LOGIC_ON         LOW
+#define    R_LOGIC_OFF        HIGH
+#define    R_LOGIC_FORWARD    LOW
+#define    R_LOGIC_REVERSE    HIGH
 #define    MOTOR1_DIRECTION   2
 #define    MOTOR1_CONTROL     3
-#define    MOTOR2_PIN1        4
-#define    MOTOR2_PIN2        5
+#define    MOTOR2_DIRECTION   4
+#define    MOTOR2_CONTROL     5
+#define    MOTOR3_CONTROL     6
+#define    MOTOR3_DIRECTION   7
 
 #define    mask_L2            256
 #define    mask_L1            1024
 
- 
+char reverse_bit; 
 
 const byte PIN_PS2_ATT = 10;
 const byte PIN_HAVECONTROLLER = 8;
@@ -236,11 +242,6 @@ const char* const controllerProtoStrings[PSPROTO_MAX + 1] PROGMEM = {
 	ctrlTypeOutOfBounds
 };
 
-void all_motor_off()
-{
-    digitalWrite( MOTOR1_DIRECTION, REVERSE);
-    digitalWrite( MOTOR1_CONTROL, OFF);
-}
 
 void motor1_fwd()
 {
@@ -259,16 +260,37 @@ void motor1_stop()
     digitalWrite( MOTOR1_DIRECTION, REVERSE);
     digitalWrite( MOTOR1_CONTROL, OFF);
 }
+
 void motor2_fwd()
 {
-    digitalWrite( MOTOR2_PIN1, HIGH);
-    digitalWrite( MOTOR2_PIN2, LOW);
+    digitalWrite( MOTOR2_DIRECTION, R_LOGIC_FORWARD);
+    digitalWrite( MOTOR2_CONTROL, R_LOGIC_ON);
 }
-
 void motor2_reverse()
 {
-    digitalWrite( MOTOR2_PIN1, LOW);
-    digitalWrite( MOTOR2_PIN2, HIGH);
+    digitalWrite( MOTOR2_DIRECTION, R_LOGIC_REVERSE);
+    digitalWrite( MOTOR2_CONTROL, R_LOGIC_ON);
+}
+void motor2_stop()
+{
+    digitalWrite(MOTOR2_DIRECTION, R_LOGIC_REVERSE);
+    digitalWrite(MOTOR2_CONTROL, R_LOGIC_OFF);
+}
+
+void motor3_fwd()
+{
+    digitalWrite( MOTOR3_DIRECTION, R_LOGIC_FORWARD);
+    digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
+}
+void motor3_reverse()
+{
+    digitalWrite( MOTOR3_DIRECTION, R_LOGIC_REVERSE);
+    digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
+}
+void motor3_stop()
+{
+    digitalWrite(MOTOR3_DIRECTION, R_LOGIC_REVERSE);
+    digitalWrite(MOTOR3_CONTROL, R_LOGIC_OFF);
 }
 
 void trolley_control(PsxButtons button)
@@ -280,20 +302,20 @@ void trolley_control(PsxButtons button)
     Serial.print("  mask : ");
     Serial.println(mask_L1 & button);
   	Serial.println("==============");
-    static PsxButtons lastB = 0;
-    if (button << lastB | lastB)
-    {
-        return;
-    }
-	  else  
-    {
-		    lastB = button;     // Save it before we alter it	
-    }
+    //static PsxButtons lastB = 0;
+    //if (button << lastB | lastB)
+    //{
+    //    return;
+    //}
+	  //else  
+    //{
+		//    lastB = button;     // Save it before we alter it	
+    //}
 #endif
 
     if(button & mask_L2)
     {
-        Serial.print("motor1 fwd\n");
+        //Serial.print("motor2 fwd\n");
         motor1_fwd();
     }
     else if(button & mask_L1)
@@ -304,8 +326,21 @@ void trolley_control(PsxButtons button)
     {
         motor1_stop();
     }
-    
-
+#if 0    
+    if(button & mask_L2)
+    {
+     //   Serial.print("motor1 fwd\n");
+        motor2_fwd();
+    }
+    else if(button & mask_L1)
+    {
+        motor2_reverse();
+    }
+    else
+    {
+        motor2_stop();
+    }
+#endif
 #if 0    
     if( button == PSB_NONE)
     {
@@ -314,17 +349,50 @@ void trolley_control(PsxButtons button)
     }
 #endif
 }
- 
+void move_with_joystick(int8_t x, int8_t y)
+{
+    if (x < -50)
+    {
+        motor3_fwd();
+    }
+    else if(x > 50)
+    {
+        motor3_reverse();
+    }
+    else
+    {
+        motor3_stop();
+    }
+    
+    if (y < -50)
+    {
+        motor2_fwd();
+    }
+    else if(y > 50)
+    {
+        motor2_reverse();
+    }
+    else
+    {
+        motor2_stop();
+    }
+}
 void setup () {
   pinMode(MOTOR1_DIRECTION, OUTPUT);
   pinMode(MOTOR1_CONTROL, OUTPUT);
-	fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
+	pinMode(MOTOR2_DIRECTION, OUTPUT);
+  pinMode(MOTOR2_CONTROL, OUTPUT);
+	pinMode(MOTOR3_DIRECTION, OUTPUT);
+  pinMode(MOTOR3_CONTROL, OUTPUT);
+	motor1_stop();
+  motor2_stop();
+  motor3_stop();
+  fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
 	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
 	//fastPinMode (PIN_ANALOG, OUTPUT);
-	all_motor_off();
-  Serial.begin (115200);
+	Serial.begin (115200);
   Serial.println ("starting...");
-	//delay (30000);
+	delay (300);
 
 	
 	while (!Serial) {
@@ -394,10 +462,11 @@ void loop () {
 			rightAnalogMoved (rx, ry);
 			if (rx != srx || ry != sry) {
 				dumpAnalog ("Right", rx, ry);
+        move_with_joystick(rx, ry);
 				srx = rx;
 				sry = ry;
 			}
-
+ 
 			//fastDigitalWrite (PIN_ANALOG, lx != 0 || ly != 0 || rx != 0 || ry != 0);
 		}
 	}
