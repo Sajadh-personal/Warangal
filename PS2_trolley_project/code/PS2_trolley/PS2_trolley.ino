@@ -21,7 +21,10 @@ typedef const byte* PGM_BYTES_P;
 #define    MOTOR2_PIN1        4
 #define    MOTOR2_PIN2        5
 
+#define    mask_L2            256
+#define    mask_L1            1024
 
+ 
 
 const byte PIN_PS2_ATT = 10;
 const byte PIN_HAVECONTROLLER = 8;
@@ -253,7 +256,7 @@ void motor1_reverse()
 
 void motor1_stop()
 {
-    digitalWrite( MOTOR1_DIRECTION, FORWARD);
+    digitalWrite( MOTOR1_DIRECTION, REVERSE);
     digitalWrite( MOTOR1_CONTROL, OFF);
 }
 void motor2_fwd()
@@ -270,8 +273,7 @@ void motor2_reverse()
 
 void trolley_control(PsxButtons button)
 {
-    #define mask_L2         0b100000000
- #if 0
+#if 0
     Serial.println("==============");
     Serial.print("button : ");
     Serial.print(button);
@@ -294,10 +296,16 @@ void trolley_control(PsxButtons button)
         Serial.print("motor1 fwd\n");
         motor1_fwd();
     }
+    else if(button & mask_L1)
+    {
+        motor1_reverse();
+    }
     else
     {
         motor1_stop();
     }
+    
+
 #if 0    
     if( button == PSB_NONE)
     {
