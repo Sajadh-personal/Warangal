@@ -1,19 +1,17 @@
 /*******************************************************************************
- * Project name : PS2 trolley controller                                       *
  *                                                                             *
- * Copyright (C) Spoke Innovations                                             *
+ *    PS2 Trolley based on library example 'PsxControllerShieldDemo'           *
  *                                                                             *
- * Date : 05/Nov/2024                                                          *
- ******************************************************************************/
+********************************************************************************/
 
+// PsxControllerShield connects controller to HW SPI port through ICSP connector
+#include <PsxControllerHwSpi.h>
 #include <DigitalIO.h>
-#include <PsxControllerBitBang.h>
 
 #include <avr/pgmspace.h>
 typedef const __FlashStringHelper * FlashStr;
 typedef const byte* PGM_BYTES_P;
 #define PSTR_TO_F(s) reinterpret_cast<const __FlashStringHelper *> (s)
-
 #define    ON                 HIGH
 #define    OFF                LOW
 #define    FORWARD            HIGH
@@ -23,16 +21,18 @@ typedef const byte* PGM_BYTES_P;
 #define    MOTOR2_PIN1        4
 #define    MOTOR2_PIN2        5
 
-//#define    MOTOR2_PIN1        6
-//#define    MOTOR2_PIN2        7
-// These can be changed freely when using the bitbanged protocol
-const byte PIN_PS2_ATT = 10;
-const byte PIN_PS2_CMD = 11;
-const byte PIN_PS2_DAT = 12;
-const byte PIN_PS2_CLK = 13;
 
-const byte PIN_BUTTONPRESS = A0;
-const byte PIN_HAVECONTROLLER = A1;
+
+const byte PIN_PS2_ATT = 10;
+const byte PIN_HAVECONTROLLER = 8;
+const byte PIN_BUTTONPRESS = 7;
+const byte PIN_ANALOG = 6;
+
+const byte ANALOG_DEAD_ZONE = 50U;
+
+PsxControllerHwSpi<PIN_PS2_ATT> psx;
+
+boolean haveController = false;
 
 const char buttonSelectName[] PROGMEM = "Select";
 const char buttonL3Name[] PROGMEM = "L3";
@@ -122,7 +122,7 @@ void dumpButtons (PsxButtons psxButtons) {
 	}
 }
 
-void dumpAnalog (const char *str, const byte x, const byte y) {
+void dumpAnalog (const char *str, const int8_t x, const int8_t y) {
 	Serial.print (str);
 	Serial.print (F(" analog: x = "));
 	Serial.print (x);
@@ -130,8 +130,74 @@ void dumpAnalog (const char *str, const byte x, const byte y) {
 	Serial.println (y);
 }
 
+// We like analog sticks to return something in the [-127, +127] range
+boolean rightAnalogMoved (int8_t& x, int8_t& y) {
+	boolean ret = false;
+	byte rx, ry;
+	
+	if (psx.getRightAnalog (rx, ry)) {				// [0 ... 255]
+		int8_t deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
+		if (abs (deltaRX) > ANALOG_DEAD_ZONE) {
+			x = deltaRX;
+			if (x == -128)
+				x = -127;
+			ret = true;
+		} else {
+			x = 0;
+		}
+		
+		int8_t deltaRY = ry - ANALOG_IDLE_VALUE;
+		if (abs (deltaRY) > ANALOG_DEAD_ZONE) {
+			y = deltaRY;
+			if (y == -128)
+				y = -127;
+			ret = true;
+		} else {
+			y = 0;
+		}
+	}
+
+	return ret;
+}
+
+boolean leftAnalogMoved (int8_t& x, int8_t& y) {
+	boolean ret = false;
+	byte lx, ly;
+	
+	if (psx.getLeftAnalog (lx, ly)) {				// [0 ... 255]
+		if (psx.getProtocol () != PSPROTO_NEGCON && psx.getProtocol () != PSPROTO_JOGCON) {
+			int8_t deltaLX = lx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
+			uint8_t deltaLXabs = abs (deltaLX);
+			if (deltaLXabs > ANALOG_DEAD_ZONE) {
+				x = deltaLX;
+				if (x == -128)
+					x = -127;
+				ret = true;
+			} else {
+				x = 0;
+			}
+			
+			int8_t deltaLY = ly - ANALOG_IDLE_VALUE;
+			uint8_t deltaLYabs = abs (deltaLY);
+			if (deltaLYabs > ANALOG_DEAD_ZONE) {
+				y = deltaLY;
+				if (y == -128)
+					y = -127;
+				ret = true;
+			} else {
+				y = 0;
+			}
+		} else {
+			// The neGcon and JogCon are more precise and work better without any dead zone
+			x = lx, y = ly;
+		}
+	}
+
+	return ret;
+}
 
 
+// Controller Type
 const char ctrlTypeUnknown[] PROGMEM = "Unknown";
 const char ctrlTypeDualShock[] PROGMEM = "Dual Shock";
 const char ctrlTypeDsWireless[] PROGMEM = "Dual Shock Wireless";
@@ -147,14 +213,26 @@ const char* const controllerTypeStrings[PSCTRL_MAX + 1] PROGMEM = {
 };
 
 
+// Controller Protocol
+const char ctrlProtoUnknown[] PROGMEM = "Unknown";
+const char ctrlProtoDigital[] PROGMEM = "Digital";
+const char ctrlProtoDualShock[] PROGMEM = "Dual Shock";
+const char ctrlProtoDualShock2[] PROGMEM = "Dual Shock 2";
+const char ctrlProtoFlightstick[] PROGMEM = "Flightstick";
+const char ctrlProtoNegcon[] PROGMEM = "neGcon";
+const char ctrlProtoJogcon[] PROGMEM = "Jogcon";
+const char ctrlProtoOutOfBounds[] PROGMEM = "(Out of bounds)";
 
-
-
-
-
-PsxControllerBitBang<PIN_PS2_ATT, PIN_PS2_CMD, PIN_PS2_DAT, PIN_PS2_CLK> psx;
-
-boolean haveController = false;
+const char* const controllerProtoStrings[PSPROTO_MAX + 1] PROGMEM = {
+	ctrlProtoUnknown,
+	ctrlProtoDigital,
+	ctrlProtoDualShock,
+	ctrlProtoDualShock2,
+	ctrlProtoFlightstick,
+	ctrlProtoNegcon,
+	ctrlProtoJogcon,
+	ctrlTypeOutOfBounds
+};
 
 void all_motor_off()
 {
@@ -209,21 +287,26 @@ void trolley_control(PsxButtons button)
       all_motor_off();
     }
 }
-
-
+ 
 void setup () {
-	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
 	fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
-	pinMode(MOTOR1_DIRECTION, OUTPUT);
-  pinMode(MOTOR1_CONTROL, OUTPUT);
+	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
+	fastPinMode (PIN_ANALOG, OUTPUT);
+	
 	delay (300);
 
 	Serial.begin (115200);
-	Serial.println (F("PS2_trolley_controller!"));
+	while (!Serial) {
+		// Wait for serial port to connect on Leonardo boards
+		fastDigitalWrite (PIN_HAVECONTROLLER, (millis () / 333) % 2);
+		fastDigitalWrite (PIN_BUTTONPRESS, (millis () / 333) % 2);
+		fastDigitalWrite (PIN_ANALOG, (millis () / 333) % 2);
+	}
+	Serial.println (F("Ready!"));
 }
  
 void loop () {
-	static byte slx, sly, srx, sry;
+	static int8_t slx, sly, srx, sry;
 	
 	fastDigitalWrite (PIN_HAVECONTROLLER, haveController);
 	
@@ -243,11 +326,6 @@ void loop () {
 					Serial.println (F("Cannot enable analog sticks"));
 				}
 				
-				//~ if (!psx.setAnalogMode (false)) {
-					//~ Serial.println (F("Cannot disable analog mode"));
-				//~ }
-				//~ delay (10);
-				
 				if (!psx.enableAnalogButtons ()) {
 					Serial.println (F("Cannot enable analog buttons"));
 				}
@@ -256,7 +334,13 @@ void loop () {
 					Serial.println (F("Cannot exit config mode"));
 				}
 			}
-			
+
+			psx.read ();		// Make sure the protocol is up to date
+			PsxControllerProtocol proto = psx.getProtocol ();
+			PGM_BYTES_P pname = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(controllerProtoStrings[proto < PSPROTO_MAX ? static_cast<byte> (proto) : PSPROTO_MAX])));
+			Serial.print (F("Controller Protocol is: "));
+			Serial.println (PSTR_TO_F (pname));
+
 			haveController = true;
 		}
 	} else {
@@ -267,25 +351,26 @@ void loop () {
 			fastDigitalWrite (PIN_BUTTONPRESS, !!psx.getButtonWord ());
 			dumpButtons (psx.getButtonWord ());
       trolley_control(psx.getButtonWord());
-
-			byte lx, ly;
-			psx.getLeftAnalog (lx, ly);
+			int8_t lx = 0, ly = 0;
+			leftAnalogMoved (lx, ly);
 			if (lx != slx || ly != sly) {
 				dumpAnalog ("Left", lx, ly);
 				slx = lx;
 				sly = ly;
 			}
 
-			byte rx, ry;
-			psx.getRightAnalog (rx, ry);
+			int8_t rx = 0, ry = 0;
+			rightAnalogMoved (rx, ry);
 			if (rx != srx || ry != sry) {
 				dumpAnalog ("Right", rx, ry);
 				srx = rx;
 				sry = ry;
 			}
+
+			fastDigitalWrite (PIN_ANALOG, lx != 0 || ly != 0 || rx != 0 || ry != 0);
 		}
 	}
 
-	
+	// Only poll "once per frame" ;)
 	delay (1000 / 60);
 }
