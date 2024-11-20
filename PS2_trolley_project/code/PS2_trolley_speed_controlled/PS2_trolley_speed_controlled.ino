@@ -1,6 +1,7 @@
 /*******************************************************************************
  *                                                                             *
- *    PS2 Trolley based on library example 'PsxControllerShieldDemo'           *
+ *    Speed-controlled-PS2-Trolley based on library example                    *
+ *                'PsxControllerShieldDemo'                                    *
  *                                                                             *
 ********************************************************************************/
 
@@ -20,12 +21,12 @@ typedef const byte* PGM_BYTES_P;
 #define    R_LOGIC_OFF        HIGH
 #define    R_LOGIC_FORWARD    LOW
 #define    R_LOGIC_REVERSE    HIGH
-#define    MOTOR1_DIRECTION   2
-#define    MOTOR1_CONTROL     3
+#define    MOTOR1_DIRECTION   7  //2
+#define    MOTOR1_CONTROL     6  //3
 #define    MOTOR2_DIRECTION   4
 #define    MOTOR2_CONTROL     5
-#define    MOTOR3_CONTROL     6
-#define    MOTOR3_DIRECTION   7
+#define    MOTOR3_CONTROL     3  // 6
+#define    MOTOR3_DIRECTION   2  // 7
 
 #define    mask_L2            256
 #define    mask_L1            1024
@@ -79,25 +80,27 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
 	buttonSquareName
 };
 
-byte psxButtonToIndex (PsxButtons psxButtons) {
+byte psxButtonToIndex (PsxButtons psxButtons) 
+{
 	byte i;
-
-	for (i = 0; i < PSX_BUTTONS_NO; ++i) {
-		if (psxButtons & 0x01) {
+	for (i = 0; i < PSX_BUTTONS_NO; ++i) 
+  {
+		if (psxButtons & 0x01) 
+    {
 			break;
 		}
-
 		psxButtons >>= 1U;
 	}
-
 	return i;
 }
 
-FlashStr getButtonName (PsxButtons psxButton) {
+FlashStr getButtonName (PsxButtons psxButton) 
+{
 	FlashStr ret = F("");
 	
 	byte b = psxButtonToIndex (psxButton);
-	if (b < PSX_BUTTONS_NO) {
+	if (b < PSX_BUTTONS_NO) 
+  {
 		PGM_BYTES_P bName = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(psxButtonNames[b])));
 		ret = PSTR_TO_F (bName);
 	}
@@ -105,32 +108,34 @@ FlashStr getButtonName (PsxButtons psxButton) {
 	return ret;
 }
 
-void dumpButtons (PsxButtons psxButtons) {
+void dumpButtons (PsxButtons psxButtons) 
+{
 	static PsxButtons lastB = 0;
 	if (psxButtons != lastB) {
 		lastB = psxButtons;     // Save it before we alter it
 		
 		Serial.print (F("Pressed: "));
 
-		for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
+		for (byte i = 0; i < PSX_BUTTONS_NO; ++i) 
+    {
 			byte b = psxButtonToIndex (psxButtons);
-			if (b < PSX_BUTTONS_NO) {
+			if (b < PSX_BUTTONS_NO) 
+      {
 				PGM_BYTES_P bName = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(psxButtonNames[b])));
 				Serial.print (PSTR_TO_F (bName));
 			}
-
 			psxButtons &= ~(1 << b);
-
-			if (psxButtons != 0) {
+			if (psxButtons != 0) 
+      {
 				Serial.print (F(", "));
 			}
 		}
-
 		Serial.println ();
 	}
 }
 
-void dumpAnalog (const char *str, const int8_t x, const int8_t y) {
+void dumpAnalog (const char *str, const int8_t x, const int8_t y) 
+{
 	Serial.print (str);
 	Serial.print (F(" analog: x = "));
 	Serial.print (x);
@@ -139,28 +144,36 @@ void dumpAnalog (const char *str, const int8_t x, const int8_t y) {
 }
 
 // We like analog sticks to return something in the [-127, +127] range
-boolean rightAnalogMoved (int8_t& x, int8_t& y) {
+boolean rightAnalogMoved (int8_t& x, int8_t& y) 
+{
 	boolean ret = false;
 	byte rx, ry;
 	
-	if (psx.getRightAnalog (rx, ry)) {				// [0 ... 255]
+	if (psx.getRightAnalog (rx, ry)) 				// [0 ... 255]
+  {
 		int8_t deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
-		if (abs (deltaRX) > ANALOG_DEAD_ZONE) {
+		if (abs (deltaRX) > ANALOG_DEAD_ZONE) 
+    {
 			x = deltaRX;
 			if (x == -128)
 				x = -127;
 			ret = true;
-		} else {
+		} 
+    else 
+    {
 			x = 0;
 		}
 		
 		int8_t deltaRY = ry - ANALOG_IDLE_VALUE;
-		if (abs (deltaRY) > ANALOG_DEAD_ZONE) {
+		if (abs (deltaRY) > ANALOG_DEAD_ZONE) 
+    {
 			y = deltaRY;
 			if (y == -128)
 				y = -127;
 			ret = true;
-		} else {
+		} 
+    else 
+    {
 			y = 0;
 		}
 	}
@@ -168,39 +181,49 @@ boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	return ret;
 }
 
-boolean leftAnalogMoved (int8_t& x, int8_t& y) {
+boolean leftAnalogMoved (int8_t& x, int8_t& y) 
+{
 	boolean ret = false;
 	byte lx, ly;
 	
-	if (psx.getLeftAnalog (lx, ly)) {				// [0 ... 255]
-		if (psx.getProtocol () != PSPROTO_NEGCON && psx.getProtocol () != PSPROTO_JOGCON) {
+	if (psx.getLeftAnalog (lx, ly)) 				// [0 ... 255]
+  {
+		if (psx.getProtocol () != PSPROTO_NEGCON && psx.getProtocol () != PSPROTO_JOGCON) 
+    {
 			int8_t deltaLX = lx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
 			uint8_t deltaLXabs = abs (deltaLX);
-			if (deltaLXabs > ANALOG_DEAD_ZONE) {
+			if (deltaLXabs > ANALOG_DEAD_ZONE) 
+      {
 				x = deltaLX;
 				if (x == -128)
 					x = -127;
 				ret = true;
-			} else {
+			} 
+      else 
+      {
 				x = 0;
 			}
 			
 			int8_t deltaLY = ly - ANALOG_IDLE_VALUE;
 			uint8_t deltaLYabs = abs (deltaLY);
-			if (deltaLYabs > ANALOG_DEAD_ZONE) {
+			if (deltaLYabs > ANALOG_DEAD_ZONE) 
+      {
 				y = deltaLY;
 				if (y == -128)
 					y = -127;
 				ret = true;
-			} else {
+			} 
+      else 
+      {
 				y = 0;
 			}
-		} else {
+		} 
+    else 
+    {
 			// The neGcon and JogCon are more precise and work better without any dead zone
 			x = lx, y = ly;
 		}
 	}
-
 	return ret;
 }
 
@@ -242,25 +265,21 @@ const char* const controllerProtoStrings[PSPROTO_MAX + 1] PROGMEM = {
 	ctrlTypeOutOfBounds
 };
 
-
 void motor1_fwd()
 {
-    digitalWrite( MOTOR1_DIRECTION, FORWARD);
-    digitalWrite( MOTOR1_CONTROL, ON);
+    digitalWrite( MOTOR1_DIRECTION, R_LOGIC_FORWARD);
+    digitalWrite( MOTOR1_CONTROL, R_LOGIC_ON);
 }
-
 void motor1_reverse()
 {
-    digitalWrite( MOTOR1_DIRECTION, REVERSE);
-    digitalWrite( MOTOR1_CONTROL, ON);
+    digitalWrite( MOTOR1_DIRECTION, R_LOGIC_REVERSE);
+    digitalWrite( MOTOR1_CONTROL, R_LOGIC_ON);
 }
-
 void motor1_stop()
 {
-    digitalWrite( MOTOR1_DIRECTION, REVERSE);
-    digitalWrite( MOTOR1_CONTROL, OFF);
+    digitalWrite( MOTOR1_DIRECTION, R_LOGIC_REVERSE);
+    digitalWrite( MOTOR1_CONTROL, R_LOGIC_OFF);
 }
-
 void motor2_fwd()
 {
     digitalWrite( MOTOR2_DIRECTION, R_LOGIC_FORWARD);
@@ -276,21 +295,20 @@ void motor2_stop()
     digitalWrite(MOTOR2_DIRECTION, R_LOGIC_REVERSE);
     digitalWrite(MOTOR2_CONTROL, R_LOGIC_OFF);
 }
-
 void motor3_fwd()
 {
-    digitalWrite( MOTOR3_DIRECTION, R_LOGIC_FORWARD);
-    digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
+    digitalWrite( MOTOR3_DIRECTION, FORWARD);
+    //digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
 }
 void motor3_reverse()
 {
-    digitalWrite( MOTOR3_DIRECTION, R_LOGIC_REVERSE);
-    digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
+    digitalWrite( MOTOR3_DIRECTION, REVERSE);
+    //digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
 }
 void motor3_stop()
 {
-    digitalWrite(MOTOR3_DIRECTION, R_LOGIC_REVERSE);
-    digitalWrite(MOTOR3_CONTROL, R_LOGIC_OFF);
+    digitalWrite(MOTOR3_DIRECTION, REVERSE);
+    digitalWrite(MOTOR3_CONTROL, OFF);
 }
 
 void trolley_control(PsxButtons button)
@@ -302,20 +320,10 @@ void trolley_control(PsxButtons button)
     Serial.print("  mask : ");
     Serial.println(mask_L1 & button);
   	Serial.println("==============");
-    //static PsxButtons lastB = 0;
-    //if (button << lastB | lastB)
-    //{
-    //    return;
-    //}
-	  //else  
-    //{
-		//    lastB = button;     // Save it before we alter it	
-    //}
 #endif
 
     if(button & mask_L2)
     {
-        //Serial.print("motor2 fwd\n");
         motor1_fwd();
     }
     else if(button & mask_L1)
@@ -326,49 +334,44 @@ void trolley_control(PsxButtons button)
     {
         motor1_stop();
     }
-#if 0    
-    if(button & mask_L2)
-    {
-     //   Serial.print("motor1 fwd\n");
-        motor2_fwd();
-    }
-    else if(button & mask_L1)
-    {
-        motor2_reverse();
-    }
-    else
-    {
-        motor2_stop();
-    }
-#endif
-#if 0    
-    if( button == PSB_NONE)
-    {
-      Serial.print("released\n");
-      //all_motor_off();
-    }
-#endif
 }
 void move_with_joystick(int8_t x, int8_t y)
 {
-    if (x < -50)
+    int    speed;  
+    if (y < -50)
     {
+        reverse_bit=0;
+        speed = map(y, -50, -127, 0, 255);
+        analogWrite(MOTOR3_CONTROL, speed);
         motor3_fwd();
     }
-    else if(x > 50)
+    else if(y > 50)
     {
+        if(reverse_bit < 2)
+        {
+            reverse_bit=1;
+            return ;
+        }
+        
         motor3_reverse();
+        speed = map(y, 50, 127, 0, 255);
+        analogWrite(MOTOR3_CONTROL, speed);
+        Serial.print("reverse...");
     }
     else
     {
         motor3_stop();
+        if(reverse_bit == 1)
+        {
+            reverse_bit=2;
+        }
     }
     
-    if (y < -50)
+    if (x < -50)
     {
         motor2_fwd();
     }
-    else if(y > 50)
+    else if(x > 50)
     {
         motor2_reverse();
     }
@@ -377,6 +380,7 @@ void move_with_joystick(int8_t x, int8_t y)
         motor2_stop();
     }
 }
+
 void setup () 
 {
   pinMode(MOTOR1_DIRECTION, OUTPUT);
@@ -388,19 +392,30 @@ void setup ()
 	motor1_stop();
   motor2_stop();
   motor3_stop();
+  
   fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
 	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
 	//fastPinMode (PIN_ANALOG, OUTPUT);
 	Serial.begin (115200);
   Serial.println ("starting...");
+  
+#if 1
+  //relay beep
+  analogWrite(MOTOR1_CONTROL, 140);
+  delay(50);
+  digitalWrite(MOTOR1_CONTROL, HIGH);
+  delay(100);
+  analogWrite(MOTOR1_CONTROL, 140);
+  delay(50);
+  digitalWrite(MOTOR1_CONTROL, HIGH);
+#endif    
 	delay (300);
-
+  
 	
-	while (!Serial) {
-		// Wait for serial port to connect on Leonardo boards
+	while (!Serial) 
+  {
 		fastDigitalWrite (PIN_HAVECONTROLLER, (millis () / 333) % 2);
 		fastDigitalWrite (PIN_BUTTONPRESS, (millis () / 333) % 2);
-		//fastDigitalWrite (PIN_ANALOG, (millis () / 333) % 2);
 	}
 	Serial.println (F("Ready!"));
 }
@@ -408,30 +423,37 @@ void setup ()
 void loop () 
 {
 	static int8_t slx, sly, srx, sry;
-	
 	fastDigitalWrite (PIN_HAVECONTROLLER, haveController);
 	
-	if (!haveController) {
-		if (psx.begin ()) {
+	if (!haveController) 
+  {
+		if (psx.begin ()) 
+    {
 			Serial.println (F("Controller found!"));
 			delay (300);
-			if (!psx.enterConfigMode ()) {
+			if (!psx.enterConfigMode ()) 
+      {
 				Serial.println (F("Cannot enter config mode"));
-			} else {
+			} 
+      else 
+      {
 				PsxControllerType ctype = psx.getControllerType ();
 				PGM_BYTES_P cname = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(controllerTypeStrings[ctype < PSCTRL_MAX ? static_cast<byte> (ctype) : PSCTRL_MAX])));
 				Serial.print (F("Controller Type is: "));
 				Serial.println (PSTR_TO_F (cname));
 
-				if (!psx.enableAnalogSticks ()) {
+				if (!psx.enableAnalogSticks ()) 
+        {
 					Serial.println (F("Cannot enable analog sticks"));
 				}
 				
-				if (!psx.enableAnalogButtons ()) {
+				if (!psx.enableAnalogButtons ()) 
+        {
 					Serial.println (F("Cannot enable analog buttons"));
 				}
 				
-				if (!psx.exitConfigMode ()) {
+				if (!psx.exitConfigMode ()) 
+        {
 					Serial.println (F("Cannot exit config mode"));
 				}
 			}
@@ -444,17 +466,23 @@ void loop ()
 
 			haveController = true;
 		}
-	} else {
-		if (!psx.read ()) {
+	} 
+  else 
+  {
+		if (!psx.read ()) 
+    {
 			Serial.println (F("Controller lost :("));
 			haveController = false;
-		} else {
+		} 
+    else 
+    {
 			fastDigitalWrite (PIN_BUTTONPRESS, !!psx.getButtonWord ());
 			dumpButtons (psx.getButtonWord ());
       trolley_control(psx.getButtonWord());
 			int8_t lx = 0, ly = 0;
 			leftAnalogMoved (lx, ly);
-			if (lx != slx || ly != sly) {
+			if (lx != slx || ly != sly) 
+      {
 				dumpAnalog ("Left", lx, ly);
 				slx = lx;
 				sly = ly;
@@ -462,17 +490,14 @@ void loop ()
 
 			int8_t rx = 0, ry = 0;
 			rightAnalogMoved (rx, ry);
-			if (rx != srx || ry != sry) {
+			if (rx != srx || ry != sry) 
+      {
 				dumpAnalog ("Right", rx, ry);
         move_with_joystick(rx, ry);
 				srx = rx;
 				sry = ry;
 			}
- 
-			//fastDigitalWrite (PIN_ANALOG, lx != 0 || ly != 0 || rx != 0 || ry != 0);
 		}
 	}
-
-	// Only poll "once per frame" ;)
 	delay (1000 / 60);
 }
