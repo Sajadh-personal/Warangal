@@ -27,6 +27,8 @@ typedef const byte* PGM_BYTES_P;
 #define    MOTOR2_CONTROL     5
 #define    MOTOR3_CONTROL     3  // 6
 #define    MOTOR3_DIRECTION   2  // 7
+#define    MOTOR3_DIRECTION2   9  //2
+
 
 #define    mask_L2            256
 #define    mask_L1            1024
@@ -35,7 +37,7 @@ char reverse_bit;
 
 const byte PIN_PS2_ATT = 10;
 const byte PIN_HAVECONTROLLER = 8;
-const byte PIN_BUTTONPRESS = 9; //7;
+//const byte PIN_BUTTONPRESS = 9; //7;
 //const byte PIN_ANALOG = 6;
 
 const byte ANALOG_DEAD_ZONE = 50U;
@@ -298,16 +300,17 @@ void motor2_stop()
 void motor3_fwd()
 {
     digitalWrite( MOTOR3_DIRECTION, FORWARD);
-    //digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
+    digitalWrite( MOTOR3_DIRECTION2, REVERSE);
 }
 void motor3_reverse()
 {
     digitalWrite( MOTOR3_DIRECTION, REVERSE);
-    //digitalWrite( MOTOR3_CONTROL, R_LOGIC_ON);
+    digitalWrite( MOTOR3_DIRECTION2, FORWARD);
 }
 void motor3_stop()
 {
     digitalWrite(MOTOR3_DIRECTION, REVERSE);
+    digitalWrite( MOTOR3_DIRECTION2, REVERSE);
     digitalWrite(MOTOR3_CONTROL, OFF);
 }
 
@@ -389,16 +392,17 @@ void setup ()
   pinMode(MOTOR2_CONTROL, OUTPUT);
 	pinMode(MOTOR3_DIRECTION, OUTPUT);
   pinMode(MOTOR3_CONTROL, OUTPUT);
+  pinMode(MOTOR3_DIRECTION2,OUTPUT);
 	motor1_stop();
   motor2_stop();
   motor3_stop();
   
   fastPinMode (PIN_HAVECONTROLLER, OUTPUT);
-	fastPinMode (PIN_BUTTONPRESS, OUTPUT);
+	//fastPinMode (PIN_BUTTONPRESS, OUTPUT);
 	//fastPinMode (PIN_ANALOG, OUTPUT);
 	Serial.begin (115200);
   Serial.println ("starting...");
-  
+  //while(1);
 #if 1
   //relay beep
   analogWrite(MOTOR1_CONTROL, 140);
@@ -415,7 +419,7 @@ void setup ()
 	while (!Serial) 
   {
 		fastDigitalWrite (PIN_HAVECONTROLLER, (millis () / 333) % 2);
-		fastDigitalWrite (PIN_BUTTONPRESS, (millis () / 333) % 2);
+		//fastDigitalWrite (PIN_BUTTONPRESS, (millis () / 333) % 2);
 	}
 	Serial.println (F("Ready!"));
 }
@@ -476,7 +480,7 @@ void loop ()
 		} 
     else 
     {
-			fastDigitalWrite (PIN_BUTTONPRESS, !!psx.getButtonWord ());
+			fastDigitalWrite (NULL, !!psx.getButtonWord ());
 			dumpButtons (psx.getButtonWord ());
       trolley_control(psx.getButtonWord());
 			int8_t lx = 0, ly = 0;
